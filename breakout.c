@@ -5,13 +5,14 @@
 #define brick_height 15
 #define brick_widht 30
 
-#define collumns 10
-#define collumns_height 5 //number of bricks
-
-#define lives 3
+#define brick_columns 5
 
 #define paddleHeight 10
 #define paddleWidht 50  //size of paddle
+#define paddleY 20		
+
+int lives = 3;
+int totalbricks = 50;
 
 
 struct ball_s {
@@ -22,15 +23,16 @@ struct ball_s {
 
 
 struct paddle_p{
-    unsigned int paddlex, paddley;
-	unsigned int last_paddlex, last_paddley;
-    int dx, dy; //speed
-}
+    unsigned int paddlex;
+    int dx; 
+};
 
 
 struct brick_b{
+	unsigned int brickx, bricky;
     uint16_t color;
-}
+};
+
 
 void init_display()
 {
@@ -51,14 +53,10 @@ void init_ball(struct ball_s *ball, int x, int y, int dx, int dy)
 	ball->dy = dy;
 }
 
-void init_paddle(struck paddle_p *paddle, int x, int y, int dx, int dy)
+void init_paddle(struct paddle_p *paddle, int x, int dx)
 {
     paddle->paddlex = x;
-	paddle->paddley = y;
-	paddle->last_paddlex = paddle->paddlex;
-	paddle->last_paddley = paddle->paddley;
 	paddle->dx = dx;
-	paddle->dy = dy;
 }
 
 void init_input()
@@ -133,6 +131,7 @@ char test_collision(char *limits, struct ball_s *ball)
 	return hit;
 }
 
+
 void update_ball(struct ball_s *ball)
 {
 	display_pixel(ball->last_ballx, ball->last_bally, BLACK);
@@ -145,59 +144,73 @@ void update_ball(struct ball_s *ball)
 }
 
 
-void update_paddle(struct paddle_s *paddle)
+void update_paddle(struct paddle_p *paddle)
 {
-	display_frectangle(paddle->last_paddlex, paddle->last_paddley, paddleHeight, paddleWidht, BLACK);
-    display_frectangle(paddle->paddlex, paddle->paddley, paddleHeight, paddleWidht, YELLOW);
+	if(paddle->dx == 0)
+		return;
 
-
-	paddle->last_paddlex = paddle->paddlex;
-	paddle->last_paddley = paddle->paddley;
 	paddle->paddlex = paddle->paddlex + paddle->dx;
-	paddle->paddley = paddle->paddley + paddle->dy;
+
+	if(paddle->dx > 0)
+	display_frectangle(paddle->paddlex - paddle->dx, paddleY, paddleHeight, paddle->dx, BLACK);
+	else
+	display_frectangle(paddle->paddlex + paddleWidht, paddleY, paddleHeight, paddle->dx, BLACK);
+
+    display_frectangle(paddle->paddlex, paddleY, paddleHeight, paddleWidht, YELLOW);
 }
 
 
-
-void get_input()
+void get_input(struct paddle_p *paddle)
 {
-	if (GPIOB->IN & MASK_P10)
-		display_frectangle(30, (VGA_HEIGHT/2)-10, 5, 20, YELLOW);
-	else
-		display_frectangle(30, (VGA_HEIGHT/2)-10, 5, 20, BLACK);
-		
-	if (GPIOB->IN & MASK_P11)
-		display_frectangle(VGA_WIDTH-31, (VGA_HEIGHT/2)-10, 5, 20, YELLOW);
-	else
-		display_frectangle(VGA_WIDTH-31, (VGA_HEIGHT/2)-10, 5, 20, BLACK);
-		
-	if (GPIOB->IN & MASK_P9)
-		display_frectangle((VGA_WIDTH/2)-10, 0, 20, 5, YELLOW);
-	else
-		display_frectangle((VGA_WIDTH/2)-10, 0, 20, 5, BLACK);
-		
-	if (GPIOB->IN & MASK_P12)
-		display_frectangle((VGA_WIDTH/2)-10, VGA_HEIGHT-6, 20, 5, YELLOW);
-	else
-		display_frectangle((VGA_WIDTH/2)-10, VGA_HEIGHT-6, 20, 5, BLACK);
+	paddle->dx = 0;
+	if (!(GPIOB->IN & MASK_P11 && GPIOB->IN & MASK_P9)){
+		if (GPIOB->IN & MASK_P11)
+			paddle->dx = 2;
+		if (GPIOB->IN & MASK_P9)
+			paddle->dx = -2;
+	}
 }
+
+
 
 int main(void)
 {
 	struct ball_s ball;
 	struct ball_s *pball = &ball;
 	char limits[9];
-	
-	init_display();
-	init_ball(pball, 150, 105, 1, 1);
-	init_input();
 
-	while (1) {
+	struct paddle_p Inpaddle;
+	struct paddle_p *paddle = &Inpaddle;
+
+	const int initialTotalBricks = totalbricks;
+	struct brick_b bricks[initialTotalBricks];
+
+
+	init_display();
+	init_ball(pball, 150, 80, 0, -1);
+	init_input();
+	init_paddle(paddle, 125, 0);
+
+	int startBrickY = VGA_HEIGHT - 1;
+	int brickIndex = 0;
+	for(int i = 1; i < brick_columns + 1; i++){
+		for(int j = 0; j <= VGA_WIDTH - brick_widht; j += brick_widht){
+			bricks[brickIndex].brickx = j;
+			bricks[brickIndex].bricky = startBrickY;
+			bricks[brickIndex].color = i;
+			display_frectangle(j, startBrickY, brick_height, brick_widht, i);
+			brickIndex++;
+		}
+		startBrickY -= brick_height;
+	}
+
+	while (lives > 0 && totalbricks > 0) {
 		test_limits(limits, pball);
 		test_collision(limits, pball);
 		delay_ms(10);
 		update_ball(pball);
-		get_input();
+		get_input(paddle);
+		update_paddle(paddle);
 	}
 
 	return 0;
