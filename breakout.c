@@ -152,21 +152,21 @@ void update_paddle(struct paddle_p *paddle)
 	paddle->paddlex = paddle->paddlex + paddle->dx;
 
 	if(paddle->dx > 0)
-	display_frectangle(paddle->paddlex - paddle->dx, paddleY, paddleHeight, paddle->dx, BLACK);
+	display_frectangle(paddle->paddlex - paddle->dx, paddleY, paddle->dx, paddleHeight, BLACK);
 	else
-	display_frectangle(paddle->paddlex + paddleWidht, paddleY, paddleHeight, paddle->dx, BLACK);
+	display_frectangle(paddle->paddlex + paddleWidht, paddleY, paddle->dx, paddleHeight, BLACK);
 
-    display_frectangle(paddle->paddlex, paddleY, paddleHeight, paddleWidht, YELLOW);
+    display_frectangle(paddle->paddlex, paddleY, paddleWidht, paddleHeight, WHITE);
 }
 
 
 void get_input(struct paddle_p *paddle)
 {
 	paddle->dx = 0;
-	if (!(GPIOB->IN & MASK_P11 && GPIOB->IN & MASK_P9)){
+	if (!(GPIOB->IN & MASK_P10 && GPIOB->IN & MASK_P11)){
 		if (GPIOB->IN & MASK_P11)
 			paddle->dx = 2;
-		if (GPIOB->IN & MASK_P9)
+		if (GPIOB->IN & MASK_P10)
 			paddle->dx = -2;
 	}
 }
@@ -191,17 +191,17 @@ int main(void)
 	init_input();
 	init_paddle(paddle, 125, 0);
 
-	int startBrickY = VGA_HEIGHT - 1;
+	int startBrickY = 0;
 	int brickIndex = 0;
 	for(int i = 1; i < brick_columns + 1; i++){
 		for(int j = 0; j <= VGA_WIDTH - brick_widht; j += brick_widht){
 			bricks[brickIndex].brickx = j;
 			bricks[brickIndex].bricky = startBrickY;
 			bricks[brickIndex].color = i;
-			display_frectangle(j, startBrickY, brick_height, brick_widht, i);
+			display_frectangle(j, startBrickY, brick_widht, brick_height, i);
 			brickIndex++;
 		}
-		startBrickY -= brick_height;
+		startBrickY += brick_height;
 	}
 
 	while (lives > 0 && totalbricks > 0) {
