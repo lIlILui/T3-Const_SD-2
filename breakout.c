@@ -2,14 +2,14 @@
 #include "vga_drv.h"
 
 
-#define brick_height 15
-#define brick_widht 30
+#define brick_height 8
+#define brick_widht 14
 
 #define brick_columns 5
 
-#define paddleHeight 10
+#define paddleHeight 5
 #define paddleWidht 50  //size of paddle
-#define paddleY 20		
+#define paddleY 211		
 
 int lives = 3;
 int totalbricks = 50;
@@ -37,6 +37,8 @@ struct brick_b{
 void init_display()
 {
 	display_background(BLACK);
+	display_frectangle(0, 6, VGA_WIDTH, 1, WHITE);
+	update_livesdisplay();
 	//display_frectangle(100, 100, 25, 35, GREEN);
 	//display_fcircle(250, 50, 25, YELLOW);
 	//display_ftriangle(30, 170, 75, 195, 50, 150, RED);
@@ -74,20 +76,20 @@ void test_limits(char *limits, struct ball_s *ball)
 	ballx = ball->ballx;
 	bally = ball->bally;
 	
-	display_pixel(ball->last_ballx, ball->last_bally, BLACK);
-	limits[0] = display_getpixel(ballx-2, bally-2);
+	//display_pixel(ball->last_ballx, ball->last_bally, BLACK);
+	limits[0] = display_getpixel(ballx-1, bally-1);		// upper Pixels
 	limits[1] = display_getpixel(ballx, bally-1);
-	limits[2] = display_getpixel(ballx+2, bally-2);
-	limits[3] = display_getpixel(ballx+1, bally);
-	limits[4] = display_getpixel(ballx+2, bally+2);
-	limits[5] = display_getpixel(ballx, bally+1);
-	limits[6] = display_getpixel(ballx-2, bally+2);
-	limits[7] = display_getpixel(ballx-1, bally);
-	limits[8] = display_getpixel(ballx, bally);
-	display_pixel(ball->last_ballx, ball->last_bally, WHITE);
+	limits[2] = display_getpixel(ballx+1, bally-1);
+	limits[3] = display_getpixel(ballx-1, bally);		// middle Pixels
+	limits[4] = display_getpixel(ballx, bally);			// ball pixel
+	limits[5] = display_getpixel(ballx+1, bally);
+	limits[6] = display_getpixel(ballx-1, bally+1);		// lower Pixels
+	limits[7] = display_getpixel(ballx, bally+1);
+	limits[8] = display_getpixel(ballx+1, bally+1);
+	//display_pixel(ball->last_ballx, ball->last_bally, WHITE);
 }
 
-char test_collision(char *limits, struct ball_s *ball)
+char test_collision(char *limits, struct ball_s *ball, struct brick_b *bricks)
 {
 	char hit = 0;
 	int i;
@@ -95,7 +97,7 @@ char test_collision(char *limits, struct ball_s *ball)
 	if ((ball->ballx < VGA_WIDTH-1) && (ball->ballx > 0) && (ball->bally < VGA_HEIGHT-1) && (ball->bally > 0)) {
 		for (i = 0; i < 9; i++) {
 			if (limits[i]) {
-				hit = 1;
+				hit = i;
 				break;
 			}
 		}
@@ -104,43 +106,65 @@ char test_collision(char *limits, struct ball_s *ball)
 			ball->dx = -ball->dx;
 			ball->dy = -ball->dy;
 		}
+
+		if (limits[1]) ball->dy = -ball->dy;
+
 		if (limits[2]) {
 			ball->dx = -ball->dx;
 			ball->dy = -ball->dy;
 		}
-		if (limits[4]) {
-			ball->dx = -ball->dx;
-			ball->dy = -ball->dy;
-		}
+
+		if (limits[3]) ball->dx = -ball->dx;
+
+		//if (limits[4])  // pixel representing the ball does not collide with itself
+
+		if (limits[5]) ball->dy = -ball->dx;
+		
 		if (limits[6]) {
 			ball->dx = -ball->dx;
 			ball->dy = -ball->dy;
 		}
 		
-		if (limits[1]) ball->dy = -ball->dy;
-		if (limits[3]) ball->dx = -ball->dx;
-		if (limits[5]) ball->dy = -ball->dy;
-		if (limits[7]) ball->dx = -ball->dx;
+		if (limits[7]) ball->dx = -ball->dy;
+
+		if (limits[8]) {
+			ball->dx = -ball->dx;
+			ball->dy = -ball->dy;
+		}
+
 	} else {
 		if ((ball->ballx + ball->dx > VGA_WIDTH-1) || (ball->ballx + ball->dx < 1))
 			ball->dx = -ball->dx;
-		if ((ball->bally + ball->dy > VGA_HEIGHT-1) || (ball->bally + ball->dy < 1))
+		if (ball->bally + ball->dy < 1)
 			ball->dy = -ball->dy;
+	}
+
+	if(limits[hit] != 7){
+		test_blockHit(limits, ball, bricks)
 	}
 	
 	return hit;
 }
 
 
+
+void test_blockHit(char *limits, struct ball_s *ball, struct brick_b *bricks){
+	
+}
+
+
+
 void update_ball(struct ball_s *ball)
 {
+	ball->ballx = ball->ballx + ball->dx;
+	ball->bally = ball->bally + ball->dy;
+
 	display_pixel(ball->last_ballx, ball->last_bally, BLACK);
 	display_pixel(ball->ballx, ball->bally, WHITE);
 
 	ball->last_ballx = ball->ballx;
 	ball->last_bally = ball->bally;
-	ball->ballx = ball->ballx + ball->dx;
-	ball->bally = ball->bally + ball->dy;
+
 }
 
 
@@ -151,10 +175,12 @@ void update_paddle(struct paddle_p *paddle)
 
 	paddle->paddlex = paddle->paddlex + paddle->dx;
 
-	if(paddle->dx > 0)
-	display_frectangle(paddle->paddlex - paddle->dx, paddleY, paddle->dx, paddleHeight, BLACK);
-	else
-	display_frectangle(paddle->paddlex + paddleWidht, paddleY, paddle->dx, paddleHeight, BLACK);
+	if(paddle->dx > 0){
+		display_frectangle(paddle->paddlex - paddle->dx, paddleY, paddle->dx, paddleHeight, BLACK);
+	}
+	else{
+		display_frectangle(paddle->paddlex + paddleWidht, paddleY, paddle->dx, paddleHeight, BLACK);
+	}
 
     display_frectangle(paddle->paddlex, paddleY, paddleWidht, paddleHeight, WHITE);
 }
@@ -163,11 +189,36 @@ void update_paddle(struct paddle_p *paddle)
 void get_input(struct paddle_p *paddle)
 {
 	paddle->dx = 0;
-	if (!(GPIOB->IN & MASK_P10 && GPIOB->IN & MASK_P11)){
-		if (GPIOB->IN & MASK_P11)
-			paddle->dx = 2;
-		if (GPIOB->IN & MASK_P10)
-			paddle->dx = -2;
+	if (!((GPIOB->IN & MASK_P10) && (GPIOB->IN & MASK_P11))){
+		if (GPIOB->IN & MASK_P11 && paddle->paddlex < VGA_WIDTH-paddleWidht-1)
+			paddle->dx = 1;
+		if (GPIOB->IN & MASK_P10 && paddle->paddlex > 2)
+			paddle->dx = -1;
+	}
+}
+
+
+
+void test_Death(struct ball_s *ball){
+	if(ball->bally + ball->dy > VGA_HEIGHT-1){
+		lives--;
+		ball->ballx = 150;
+		ball->bally = 80;
+		ball->dx = 0;
+		ball->dy = 1;
+		update_livesdisplay();
+	}
+}
+
+
+
+void update_livesdisplay(void){
+	display_frectangle(250, 1, 14, 4, BLACK);
+
+	int x = 250;
+	for(int i = 0; i < lives; i++){
+		display_frectangle(x, 1, 2, 4, WHITE);
+		x += 4;
 	}
 }
 
@@ -187,26 +238,27 @@ int main(void)
 
 
 	init_display();
-	init_ball(pball, 150, 80, 0, -1);
+	init_ball(pball, 150, 170, 0, 1);
 	init_input();
 	init_paddle(paddle, 125, 0);
 
 	int startBrickY = 0;
 	int brickIndex = 0;
-	for(int i = 1; i < brick_columns + 1; i++){
-		for(int j = 0; j <= VGA_WIDTH - brick_widht; j += brick_widht){
+	for(int i = 8; i < brick_columns + 1; i++){
+		for(int j = 1; j <= VGA_WIDTH - brick_widht - 1; j += brick_widht + 1){
 			bricks[brickIndex].brickx = j;
 			bricks[brickIndex].bricky = startBrickY;
 			bricks[brickIndex].color = i;
 			display_frectangle(j, startBrickY, brick_widht, brick_height, i);
 			brickIndex++;
 		}
-		startBrickY += brick_height;
+		startBrickY += brick_height + 1;
 	}
 
 	while (lives > 0 && totalbricks > 0) {
+		test_Death(pball);
 		test_limits(limits, pball);
-		test_collision(limits, pball);
+		test_collision(limits, pball, bricks);
 		delay_ms(10);
 		update_ball(pball);
 		get_input(paddle);
