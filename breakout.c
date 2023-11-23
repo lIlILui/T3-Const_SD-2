@@ -6,13 +6,14 @@
 #define brick_widht 12
 
 #define brick_columns 5
+#define brick_per_columns 23
 
 #define paddleHeight 5
 #define paddleWidht 50  //size of paddle
 #define paddleY 211		
 
 int lives = 3;
-int totalbricks = brick_columns * 23;
+int totalbricks = brick_columns * brick_per_columns;
 
 
 struct ball_s {
@@ -83,7 +84,7 @@ void test_limits(char *limits, struct ball_s *ball)
 	limits[8] = display_getpixel(ballx, bally);
 }
 
-char test_collision(char *limits, struct ball_s *ball, struct brick_b *bricks)
+char test_collision(char *limits, struct ball_s *ball, struct brick_b *bricks, struct paddle_p *paddle)
 {
 	char hit = 0;
 	int i;
@@ -127,90 +128,18 @@ char test_collision(char *limits, struct ball_s *ball, struct brick_b *bricks)
 	if(limits[hit] != 7){
 		test_blockHit(limits, ball, bricks, hit);
 	}
-
-	
-	return hit;
-}
-
-
-/*
-void test_limits(char *limits, struct ball_s *ball)
-{
-	unsigned int ballx, bally;
-	
-	ballx = ball->ballx;
-	bally = ball->bally;
-	
-	//display_pixel(ball->last_ballx, ball->last_bally, BLACK);
-	limits[0] = display_getpixel(ballx-1, bally-1);		// upper Pixels
-	limits[1] = display_getpixel(ballx, bally-1);
-	limits[2] = display_getpixel(ballx+1, bally-1);
-	limits[3] = display_getpixel(ballx-1, bally);		// middle Pixels
-	limits[4] = display_getpixel(ballx, bally);			// ball pixel
-	limits[5] = display_getpixel(ballx+1, bally);
-	limits[6] = display_getpixel(ballx-1, bally+1);		// lower Pixels
-	limits[7] = display_getpixel(ballx, bally+1);
-	limits[8] = display_getpixel(ballx+1, bally+1);
-	//display_pixel(ball->last_ballx, ball->last_bally, WHITE);
-}
-
-char test_collision(char *limits, struct ball_s *ball, struct brick_b *bricks)
-{
-	char hit = 0;
-	int i;
-	
-	if ((ball->ballx < VGA_WIDTH-1) && (ball->ballx > 0) && (ball->bally < VGA_HEIGHT-1) && (ball->bally > 0)) {
-		for (i = 0; i < 9; i++) {
-			if (limits[i]) {
-				hit = i;
-				break;
+	else{
+		if(ball->bally > 208){
+			if (ball->dx == 0 || ball->dx + paddle->dx == 0){
+				ball->dx += paddle->dx;
 			}
 		}
-		
-		if (limits[0]) {
-			ball->dx = -ball->dx;
-			ball->dy = -ball->dy;
-		}
-
-		if (limits[1]) ball->dy = -ball->dy;
-
-		if (limits[2]) {
-			ball->dx = -ball->dx;
-			ball->dy = -ball->dy;
-		}
-
-		if (limits[3]) ball->dx = -ball->dx;
-
-		//if (limits[4])  // pixel representing the ball does not collide with itself
-
-		if (limits[5]) ball->dy = -ball->dx;
-		
-		if (limits[6]) {
-			ball->dx = -ball->dx;
-			ball->dy = -ball->dy;
-		}
-		
-		if (limits[7]) ball->dx = -ball->dy;
-
-		if (limits[8]) {
-			ball->dx = -ball->dx;
-			ball->dy = -ball->dy;
-		}
-
-	} else {
-		if ((ball->ballx + ball->dx > VGA_WIDTH-1) || (ball->ballx + ball->dx < 1))
-			ball->dx = -ball->dx;
-		if (ball->bally + ball->dy < 1)
-			ball->dy = -ball->dy;
-	}
-
-	if(limits[hit] != 7){
-		test_blockHit(limits, ball, bricks);
 	}
 	
 	return hit;
 }
-*/
+
+
 
 
 void test_blockHit(char *limits, struct ball_s *ball, struct brick_b *bricks, char hit){
@@ -226,29 +155,27 @@ void test_blockHit(char *limits, struct ball_s *ball, struct brick_b *bricks, ch
 			}
 		}
 		int brick_x = 0;
-		while(1){
-			int b = (brick_y * 23) - 24 + brick_x;
-			if(bricks[b+1].brickx > ball->ballx >= bricks[b].brickx){
+		while(brick_x < 22){
+			if(bricks[brick_x+1].brickx > ball->ballx >= bricks[brick_x].brickx){
 				break;
 			}
 			else{
 				brick_x++;
 			}
 		}
+
 		printf("brick_y %d\n", brick_y);
 		printf("brick_x %d\n", brick_x);
-		int id = brick_y * brick_x;
-		printf("id %d\n", id);
-		display_frectangle(bricks[id].brickx, bricks[id].bricky, brick_widht, brick_height, BLACK);
 
-		/*int block_y = ball->bally / brick_height + 1; //coluna
-		int block_x = ball->ballx / brick_widht + 1; //linha
-		int id = block_y * block_x;
-		printf("block_y %d\n", block_y);
-		printf("block_x %d\n", block_x);
+		int id;
+		if (brick_y > 0)
+			id = brick_x + (23 * (brick_y-1));
+		else 
+			id = brick_x;
+
 		printf("id %d\n", id);
 		display_frectangle(bricks[id].brickx, bricks[id].bricky, brick_widht, brick_height, BLACK);
-		 */
+		totalbricks -= 1;
 	}
 }
 
@@ -335,33 +262,48 @@ int main(void)
 	const int initialTotalBricks = totalbricks;
 	struct brick_b bricks[initialTotalBricks];
 
+	while (1){
+		init_display();
+		init_ball(pball, 150, 190, 0, 1);
+		init_input();
+		init_paddle(paddle, 125, 0);
 
-	init_display();
-	init_ball(pball, 150, 190, 0, 1);
-	init_input();
-	init_paddle(paddle, 125, 0);
-
-	int startBrickY = 8;
-	int brickIndex = 0;
-	for(int i = 1; i <= brick_columns; i++){
-		for(int j = 1; j <= VGA_WIDTH - brick_widht - 1; j += brick_widht + 1){
-			bricks[brickIndex].brickx = j;
-			bricks[brickIndex].bricky = startBrickY;
-			bricks[brickIndex].color = i;
-			display_frectangle(j, startBrickY, brick_widht, brick_height, i);
-			brickIndex++;
+		int startBrickY = 8;
+		int brickIndex = 0;
+		for(int i = 1; i <= brick_columns; i++){
+			for(int j = 1; j <= VGA_WIDTH - brick_widht - 1; j += brick_widht + 1){
+				bricks[brickIndex].brickx = j;
+				bricks[brickIndex].bricky = startBrickY;
+				bricks[brickIndex].color = i;
+				display_frectangle(j, startBrickY, brick_widht, brick_height, i);
+				brickIndex++;
+			}
+			startBrickY += brick_height + 1;
 		}
-		startBrickY += brick_height + 1;
-	}
 
-	while (lives > 0 && totalbricks > 0) {
-		test_Death(pball);
-		test_limits(limits, pball);
-		test_collision(limits, pball, bricks);
-		delay_ms(10);
-		update_ball(pball);
-		get_input(paddle);
-		update_paddle(paddle);
+
+		while (lives > 0 && totalbricks > 0) {
+			test_Death(pball);
+			test_limits(limits, pball);
+			test_collision(limits, pball, bricks, paddle);
+			delay_ms(10);
+			update_ball(pball);
+			get_input(paddle);
+			update_paddle(paddle);
+		}
+
+
+		while (1){
+			if (GPIOB->IN & MASK_P9){
+				lives = 3;
+				totalbricks = brick_columns * brick_per_columns;
+				break;
+			}
+			if (GPIOB->IN & MASK_P12){
+				return 1;
+			}
+		}
+		
 	}
 
 	return 0;
