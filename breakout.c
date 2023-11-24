@@ -42,14 +42,23 @@ void init_display()
 	update_livesdisplay();
 }
 
-void init_ball(struct ball_s *ball, int x, int y, int dx, int dy)
+char init_ball(struct ball_s *ball, int x, int y, int dx, int dy)
 {
-	ball->ballx = x;
-	ball->bally = y;
-	ball->last_ballx = ball->ballx;
-	ball->last_bally = ball->bally;
-	ball->dx = dx;
-	ball->dy = dy;
+
+	static char init_game = 0;
+
+	if (GPIOB->IN & MASK_P8){
+		ball->ballx = x;
+		ball->bally = y;
+		ball->last_ballx = ball->ballx;
+		ball->last_bally = ball->bally;
+		ball->dx = dx;
+		ball->dy = dy;
+		init_game = 1;
+	}
+
+	return init_game;
+
 }
 
 void init_paddle(struct paddle_p *paddle, int x, int dx)
@@ -73,13 +82,13 @@ void test_limits(char *limits, struct ball_s *ball)
 	ballx = ball->ballx;
 	bally = ball->bally;
 	
-	limits[0] = display_getpixel(ballx-2, bally-2);
+	limits[0] = display_getpixel(ballx-1, bally-1);
 	limits[1] = display_getpixel(ballx, bally-1);
-	limits[2] = display_getpixel(ballx+2, bally-2);
+	limits[2] = display_getpixel(ballx+1, bally-1);
 	limits[3] = display_getpixel(ballx+1, bally);
-	limits[4] = display_getpixel(ballx+2, bally+2);
+	limits[4] = display_getpixel(ballx+1, bally+1);
 	limits[5] = display_getpixel(ballx, bally+1);
-	limits[6] = display_getpixel(ballx-2, bally+2);
+	limits[6] = display_getpixel(ballx-1, bally+1);
 	limits[7] = display_getpixel(ballx-1, bally);
 	limits[8] = display_getpixel(ballx, bally);
 }
@@ -129,9 +138,14 @@ char test_collision(char *limits, struct ball_s *ball, struct brick_b *bricks, s
 		test_blockHit(limits, ball, bricks, hit);
 	}
 	else{
-		if(ball->bally > 208){
-			if (ball->dx == 0 || ball->dx + paddle->dx == 0){
-				ball->dx += paddle->dx;
+		if(ball->bally >= paddleY-1){
+			if (ball->ballx <= paddle->paddlex + paddleWidht/2){
+				ball->dx = -1;
+			}
+			else{
+				if (paddle->paddlex + paddleWidht/2 < ball->ballx){
+				ball->dx = 1;
+				}
 			}
 		}
 	}
@@ -140,9 +154,29 @@ char test_collision(char *limits, struct ball_s *ball, struct brick_b *bricks, s
 }
 
 
-
-
 void test_blockHit(char *limits, struct ball_s *ball, struct brick_b *bricks, char hit){
+	if((brick_height + 1)*brick_columns + 9 >= ball->bally){
+		int paddle_x =0, paddle_y = 8;
+		for(int j = 1; j <= VGA_WIDTH - brick_widht - 1; j += brick_widht + 1){
+			if((ball->ballx >= j-2) && (ball->ballx < (j+brick_widht)))  {
+				paddle_x = j;
+				printf("paddle_x: %d\n", paddle_x);
+				break;		
+			}
+		}
+		for(int i = 1; i <= brick_columns; i++){
+			if((ball->bally >= paddle_y-1) && (ball->bally <= (paddle_y+8))){
+				display_frectangle(paddle_x, paddle_y, brick_widht, brick_height, BLACK);
+				totalbricks -= 1;
+				printf("paddle_y = %d\n",paddle_y);
+				return;
+			}
+			paddle_y += brick_height + 1;
+		}
+	} 	
+}
+
+/*void test_blockHit(char *limits, struct ball_s *ball, struct brick_b *bricks, char hit){
 	if((brick_height + 1)*brick_columns + 9 >= ball->bally){
 		int brick_y = brick_columns;
 		while(1){
@@ -177,20 +211,18 @@ void test_blockHit(char *limits, struct ball_s *ball, struct brick_b *bricks, ch
 		display_frectangle(bricks[id].brickx, bricks[id].bricky, brick_widht, brick_height, BLACK);
 		totalbricks -= 1;
 	}
-}
+}*/
 
 
 
 void update_ball(struct ball_s *ball)
 {
-	ball->ballx = ball->ballx + ball->dx;
-	ball->bally = ball->bally + ball->dy;
-
-	display_pixel(ball->last_ballx, ball->last_bally, BLACK);
-	display_pixel(ball->ballx, ball->bally, WHITE);
-	ball->last_ballx = ball->ballx;
-	ball->last_bally = ball->bally;
-
+		ball->ballx = ball->ballx + ball->dx;
+		ball->bally = ball->bally + ball->dy;
+		display_pixel(ball->last_ballx, ball->last_bally, BLACK);
+		display_pixel(ball->ballx, ball->bally, WHITE);
+		ball->last_ballx = ball->ballx;
+		ball->last_bally = ball->bally;
 }
 
 
@@ -212,7 +244,7 @@ void update_paddle(struct paddle_p *paddle)
 }
 
 
-void get_input(struct paddle_p *paddle)
+/*void get_input(struct paddle_p *paddle)
 {
 	paddle->dx = 0;
 	if (!((GPIOB->IN & MASK_P10) && (GPIOB->IN & MASK_P11))){
@@ -221,9 +253,42 @@ void get_input(struct paddle_p *paddle)
 		if (GPIOB->IN & MASK_P10 && paddle->paddlex > 2)
 			paddle->dx = -1;
 	}
+}*/
+
+void get_input(struct paddle_p * paddle)
+{
+	int values_read[2];
+	read_mouse(values_read);
+	static int changes1 = 0, changes2 , flag = 0;
+ 
+	if (GPIOB->IN & MASK_P8 && flag != 1){
+		display_frectangle((VGA_WIDTH/2)-15, (VGA_HEIGHT)-5, paddleWidht, 5, WHITE);
+		paddle->paddlex = (VGA_WIDTH/2)-15;
+		flag = 1;
+	}
+	//if (GPIOB->IN & MASK_P10){ 
+	if((values_read[0] == 0) && (flag == 1) && (paddle->paddlex > 1)){
+		if(abs(values_read[1]) > 10000) changes1 = 3; 
+		else if(abs(values_read[1]) > 1000)  changes1 = 2; 
+		else if(abs(values_read[1]) > 100)   changes1 = 1;
+		else changes1 = 0;
+		display_frectangle(paddle->paddlex+paddleWidht-changes1, (VGA_HEIGHT)-5, changes1, 5, BLACK);
+		display_frectangle(paddle->paddlex-changes1, (VGA_HEIGHT)-5, changes1, 5, WHITE);
+		paddle->paddlex = paddle->paddlex - changes1;
+		//printf("changes1 penis = %d\n", changes1);
+	}
+	//if (GPIOB->IN & MASK_P11){ 
+	if((values_read[0] == 1) && (flag == 1) && (paddle->paddlex < VGA_WIDTH-paddleWidht-1)){
+		if(abs(values_read[1]) > 10000) changes2 = 3; 
+		else if(abs(values_read[1]) > 1000)  changes2 = 2; 
+		else if(abs(values_read[1]) > 100)   changes2 = 1;
+		else changes2 = 0;
+		display_frectangle(paddle->paddlex, (VGA_HEIGHT)-5, changes2, 5, BLACK);
+		display_frectangle(paddle->paddlex+paddleWidht, (VGA_HEIGHT)-5, changes2, 5, WHITE);
+		paddle->paddlex = paddle->paddlex + changes2;
+		//printf("changes2 penis = %d\n", changes2);
+	}
 }
-
-
 
 void test_Death(struct ball_s *ball){
 	if(ball->bally + ball->dy > VGA_HEIGHT-1){
@@ -254,7 +319,9 @@ int main(void)
 {
 	struct ball_s ball;
 	struct ball_s *pball = &ball;
-	char limits[9];
+	pball->dx = 0;
+	pball->dy = 0;
+	char limits[9],cont=0, init_game = 0;
 
 	struct paddle_p Inpaddle;
 	struct paddle_p *paddle = &Inpaddle;
@@ -264,7 +331,6 @@ int main(void)
 
 	while (1){
 		init_display();
-		init_ball(pball, 150, 190, 0, 1);
 		init_input();
 		init_paddle(paddle, 125, 0);
 
@@ -283,13 +349,18 @@ int main(void)
 
 
 		while (lives > 0 && totalbricks > 0) {
-			test_Death(pball);
-			test_limits(limits, pball);
-			test_collision(limits, pball, bricks, paddle);
-			delay_ms(10);
-			update_ball(pball);
+			if(cont>1 && (init_game==1)){
+				test_Death(pball);
+				test_limits(limits, pball);
+				test_collision(limits, pball, bricks, paddle);
+				update_ball(pball);
+				//update_paddle(paddle);
+				cont=0;
+			}
+			else cont++;
+			init_game = init_ball(pball, 0, VGA_HEIGHT/2, 1, 1);
 			get_input(paddle);
-			update_paddle(paddle);
+			delay_ms(5);
 		}
 
 
