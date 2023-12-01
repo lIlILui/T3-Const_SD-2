@@ -75,7 +75,7 @@ void test_limits(char *limits, struct ball_s *ball)
 	
 	display_pixel(ball->last_ballx, ball->last_bally, BLACK);
 
-	limits[0] = display_getpixel(ballx + ball->dx, bally+ ball->dy);
+	limits[0] = display_getpixel(ballx + ball->dx, bally+ ball->dy); //Teste do pixel da próxima posição que a bola vai ir, pois é o único que importa para detecção da colisão
 
 }
 
@@ -84,27 +84,27 @@ char test_collision(char *limits, struct ball_s *ball, struct brick_b *bricks, s
 	char hit = 0;
 	int i;
 	
-	if ((ball->ballx < VGA_WIDTH-1) && (ball->ballx > 0) && (ball->bally < VGA_HEIGHT-1) && (ball->bally > 0)) {
-		if(ball->bally+1 >= (VGA_HEIGHT-5)){
-			if (ball->ballx <= paddle->paddlex + paddleWidht/2 && ball->ballx >= paddle->paddlex){
+	if ((ball->ballx < VGA_WIDTH-1) && (ball->ballx > 0) && (ball->bally < VGA_HEIGHT-1) && (ball->bally > 0)) { //Teste para checar se a bola está na borda
+		if(ball->bally+1 >= (VGA_HEIGHT-5)){ //Teste de colisão da bola no paddle 
+			if (ball->ballx <= paddle->paddlex + paddleWidht/2 && ball->ballx >= paddle->paddlex){ //Se a bola vai colidir com a metade do paddle da esquerda, a bola vai pra esquerda
 				ball->dx = -1;
 				ball->dy = -1;
 			}
 			else{
-				if (paddle->paddlex + paddleWidht/2 < ball->ballx && ball->ballx < paddle->paddlex + paddleWidht){
+				if (paddle->paddlex + paddleWidht/2 < ball->ballx && ball->ballx <= paddle->paddlex + paddleWidht){ //Se a bola vai colidir com a metade do paddle da direita, a bola vai pra direita
 				ball->dx = 1;
 				ball->dy = -1;
 				}
 			}
 		}
 		else {
-			if ((ball->ballx + ball->dx >= VGA_WIDTH-1) || (ball->ballx + ball->dx < 1)) ball->dx = -ball->dx;
+			if ((ball->ballx + ball->dx >= VGA_WIDTH-1) || (ball->ballx + ball->dx < 1)) ball->dx = -ball->dx; //Teste para a bola não passar do limite da tela em x 
 			else {
-				if (ball->bally + ball->dy <= 8) {
+				if (ball->bally + ball->dy <= 8) { //Teste para a bola não passar do limite da tela em y 
 					ball->dy = -ball->dy;
 				}
 				else { 
-					if(limits[0] != 7 && limits[0] != 0) test_blockHit(limits, ball, bricks, 0);
+					if(limits[0] != 7 && limits[0] != 0) test_blockHit(limits, ball, bricks, 0); //Colisão com os blocos
 				} 
 			} 
 		}
@@ -123,23 +123,23 @@ void test_blockHit(char *limits, struct ball_s *ball, struct brick_b *bricks, ch
 	//if((brick_height + 1)*brick_columns + 9 >= ball->bally){
 		int paddle_x =0, paddle_y = 10;
 		for(int i = 1; i <= brick_columns; i++){
-			if((bally >= paddle_y-1) && (bally <= (paddle_y+8))){
+			if((bally >= paddle_y-1) && (bally <= (paddle_y+8))){ //Detector de y da bola
+				//Se a bola vai colidir com o limite superior ou inferior (y) do bloco ele muda o y
 				if(((bally == paddle_y) || (bally == paddle_y+1)) || ((bally == paddle_y+brick_height-1) || (bally == paddle_y+brick_height-2))) ball->dy = -ball->dy;
-				//printf("paddle_y = %d\n",paddle_y);
-				pontos +=  6 - ((int) paddle_y / 9);
-				print_pontos();
+				pontos +=  6 - ((int) paddle_y / 9); //Fórmula para aumentar os pontos
+				print_pontos(); //Atualiza os pontos
 				break;
 			}
 			paddle_y += brick_height + 1;
 		}
 	
 		for(int j = 1; j <= VGA_WIDTH - brick_widht - 1; j += brick_widht + 1){
-			if((ballx >= j) && (ballx <= (j+brick_widht-1)))  {
+			if((ballx >= j) && (ballx <= (j+brick_widht-1)))  { //Detector de x da bola
 				paddle_x = j;
+				//Se a bola vai colidir com o limite da esquerda ou direita (x) do bloco ele muda o x
 				if(((ballx == paddle_x) || (ball == paddle_x+1)) || ((ballx == paddle_x+brick_widht-1) || (ballx == paddle_x+brick_widht-2))) ball->dx = -ball->dx;
-				display_frectangle(paddle_x, paddle_y, brick_widht, brick_height, BLACK);
-				totalbricks -= 1;
-				//printf("paddle_x: %d\n", paddle_x);
+				display_frectangle(paddle_x, paddle_y, brick_widht, brick_height, BLACK); //Bloco se torna preto
+				totalbricks -= 1; //Diminui um dos blocos totais
 				return;		
 			}
 		}
@@ -194,30 +194,30 @@ void get_input(struct paddle_p * paddle)
 {
 	int values_read[2];
 	read_mouse(values_read);
-	static int changes1 = 0, changes2 = 0;
-	if((values_read[0] == 0) && (flag == 1) && (paddle->paddlex > 3)){
-		if(abs(values_read[1]) > 10000) changes1 = 3; 
-		else if(abs(values_read[1]) > 1000)  changes1 = 2; 
-		else if(abs(values_read[1]) > 100)   changes1 = 1;
-		else changes1 = 0;
-		display_frectangle(paddle->paddlex+paddleWidht-changes1, (VGA_HEIGHT)-5, changes1, 5, BLACK);
-		display_frectangle(paddle->paddlex-changes1, (VGA_HEIGHT)-5, changes1, 5, WHITE);
-		paddle->paddlex = paddle->paddlex - changes1;
+	static int changes = 0;
+	//Valor lido do mouse em values_read[1] corresponde ao quanto o paddle variou de posição
+	if(abs(values_read[1]) > 10000) changes = 3; 
+	else if(abs(values_read[1]) > 1000)  changes = 2; 
+	else if(abs(values_read[1]) > 100)   changes = 1;
+	else changes = 0;
+
+
+	//Valor lido do mouse em values_read[0] indica o mouse está variando para esquerda (0) ou direita (1)
+	if((values_read[0] == 0) && (flag == 1) && ((paddle->paddlex - changes) > 2)){
+		display_frectangle(paddle->paddlex+paddleWidht-changes, (VGA_HEIGHT)-5, changes, 5, BLACK);
+		display_frectangle(paddle->paddlex-changes, (VGA_HEIGHT)-5, changes, 5, WHITE);
+		paddle->paddlex = paddle->paddlex - changes;
 	}
-	if((values_read[0] == 1) && (flag == 1) && (paddle->paddlex < VGA_WIDTH-paddleWidht-1)){
-		if(abs(values_read[1]) > 10000) changes2 = 3; 
-		else if(abs(values_read[1]) > 1000)  changes2 = 2; 
-		else if(abs(values_read[1]) > 100)   changes2 = 1;
-		else changes2 = 0;
-		display_frectangle(paddle->paddlex, (VGA_HEIGHT)-5, changes2, 5, BLACK);
-		display_frectangle(paddle->paddlex+paddleWidht, (VGA_HEIGHT)-5, changes2, 5, WHITE);
-		paddle->paddlex = paddle->paddlex + changes2;
+	if((values_read[0] == 1) && (flag == 1) && ((paddle->paddlex + changes) < VGA_WIDTH-paddleWidht-1)){
+		display_frectangle(paddle->paddlex, (VGA_HEIGHT)-5, changes, 5, BLACK);
+		display_frectangle(paddle->paddlex+paddleWidht, (VGA_HEIGHT)-5, changes, 5, WHITE);
+		paddle->paddlex = paddle->paddlex + changes;
 	}
 
 }
 
 char test_Death(struct ball_s *ball, struct paddle_p * paddle){
-	if(ball->bally + ball->dy > VGA_HEIGHT-1){
+	if(ball->bally + ball->dy > VGA_HEIGHT-1){	// Teste se a bolinha bateu no limite inferior
 		lives--;
 		update_livesdisplay();
 		init_game = 0;
@@ -232,8 +232,8 @@ void update_livesdisplay(void){
 	display_frectangle(250, 1, 14, 6, BLACK);
 
 	int x = 250;
-	for(int i = 0; i < lives; i++){
-		display_frectangle(x, 1, 2, 6, WHITE);
+	for(int i = 0; i < lives; i++){				// Cria um retangulo por vida
+		display_frectangle(x, 1, 2, 6, WHITE); 
 		x += 4;
 	}
 }
@@ -271,31 +271,16 @@ int main(void)
 			startBrickY += brick_height + 1;
 		}
 
-
-		/*while (lives > 0 && totalbricks > 0) {
-			if(cont>1 && (init_game==1)){
-				test_Death(pball, &init_game);
-				test_limits(limits, pball);
-				test_collision(limits, pball, bricks, paddle);
-				cont=0;
-				update_ball(pball);
-			}
-			else cont++;
-			init_ball(pball, 0, VGA_HEIGHT/2, 1, 1, &init_game);
-			get_input(paddle);
-			delay_ms(5);
-		}*/
-
 		while (lives > 0 && totalbricks > 0) {
 			init_ball(pball, 40, VGA_HEIGHT/2, 1, 1); 
 			init_paddle(paddle);
 			if(init_game) {
 				if(test_Death(pball, paddle)) continue;
+				get_input(paddle);
 				test_limits(limits, pball);
 				test_collision(limits, pball, bricks, paddle);
 				update_ball(pball);
-				delay_ms(5);
-				get_input(paddle);
+				delay_ms(4);
 			}
 		}			
 
@@ -303,13 +288,13 @@ int main(void)
 		if(lives == 0) flag = 0;
 
 		while (1){
-			if (GPIOB->IN & MASK_P9){
+			if (GPIOB->IN & MASK_P9){		// botao superior para reiniciar
 				lives = 3;
 				pontos = 0;
 				totalbricks = brick_columns * brick_per_columns;
 				break;
 			}
-			if (GPIOB->IN & MASK_P12){
+			if (GPIOB->IN & MASK_P12){		// botao inferior para terminar
 				return 1;
 			}
 		}
